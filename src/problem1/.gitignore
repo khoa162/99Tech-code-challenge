@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Testing
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# System
+.DS_Store 
