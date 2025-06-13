@@ -45,29 +45,3 @@ body {
 :focus-visible {
   @apply outline-none ring-2 ring-primary-500 ring-offset-2;
 }
-
-/* Loading animation */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Confetti animation */
-@keyframes confetti-fall {
-  0% {
-    transform: translateY(-100vh) rotate(0deg);
-  }
-
-  100% {
-    transform: translateY(100vh) rotate(360deg);
-  }
-}
-
-.confetti {
-  animation: confetti-fall 3s ease-in-out forwards;
-}

@@ -14,18 +14,3 @@ You may use this URL for token price information and to compute exchange rates (
 Bonus: extra points if you use Vite for this task!
 Please submit your solution using the files provided in the skeletal repo, including any additional files your solution may use.
 Hint: feel free to simulate or mock interactions with a backend service, e.g. implement a loading indicator with a timeout delay for the submit button is good enough.
-
-
-
-Build a currency swap form in React using Vite.
-The form should let users choose two currencies (from and to), enter an amount, and see the converted result.
-Use React state, a token price mock API, and show exchange rate dynamically.
-Implement dropdowns to select tokens, and input for amount.
-Add a Swap button with loading indicator (simulate delay 1.5s).
-Skip actual backend, just simulate conversion logic using exchange rates.
-Add basic input validation (disable button if amount ≤ 0 or tokens are the same).
-Use TailwindCSS for UI.
-Include placeholder token icons and mock price data inside src/data/tokens.ts.
-Make the layout mobile responsive and user-friendly.
-Folder structure should follow src/components, src/hooks, src/data, etc.
-Bonus: use Vite to initialize the project.

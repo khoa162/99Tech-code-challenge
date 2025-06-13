@@ -1,3 +1,48 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --background: #ffffff;
+    --background-dark: #1a1a1a;
+    --text: #1f2937;
+    --text-dark: #f3f4f6;
+}
+
+/* Styles cho body */
+body {
+    @apply min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tùy chỉnh thanh cuộn */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Hiệu ứng chuyển đổi cho dark mode */
+* {
+    @apply transition-colors duration-200;
+}
+
+/* Styles cho focus */
+:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+}
