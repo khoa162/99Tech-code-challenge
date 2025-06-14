@@ -39,11 +39,14 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
     const inputAmount = parseFloat(amount);
     if (isNaN(inputAmount)) return;
 
-    // FIXME: Consider using a more precise calculation method
+    // Calculate exchange rate without rounding
     const rate = fromToken.price / toToken.price;
     const feeAmount = inputAmount * TRANSACTION_FEE;
-    const calculatedOutput = ((inputAmount - feeAmount) * rate).toFixed(6);
-    setOutputAmount(calculatedOutput);
+    const amountAfterFee = inputAmount - feeAmount;
+    const calculatedOutput = amountAfterFee * rate;
+    
+    // Only format the final display value
+    setOutputAmount(calculatedOutput.toFixed(6));
   }, [fromToken, toToken, amount]);
 
   const validateForm = useCallback((): boolean => {
@@ -233,7 +236,7 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
             <p className="text-2xl font-semibold dark:text-white">{outputAmount}</p>
             <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               <TooltipMemo text="The current exchange rate between the selected tokens">
-                <p>Exchange Rate: 1 {fromToken.currency} = {(fromToken.price / toToken.price).toFixed(6)} {toToken.currency}</p>
+                <p>Exchange Rate: 1 {fromToken.currency} = {(fromToken.price / toToken.price).toFixed(2)} {toToken.currency}</p>
               </TooltipMemo>
               <TooltipMemo text="A 0.3% fee is charged on each swap transaction">
                 <p>Fee: {(parseFloat(amount) * TRANSACTION_FEE).toFixed(6)} {fromToken.currency}</p>

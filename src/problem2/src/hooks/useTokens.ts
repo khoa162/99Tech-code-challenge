@@ -10,6 +10,18 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 // Fallback icon for tokens without icon
 const FALLBACK_ICON = 'https://github.com/Switcheo/token-icons/raw/main/tokens/SWTH.svg';
 
+// List of stablecoins that should be closest to 1
+const STABLECOINS = ['BUSD', 'USDC', 'USD', 'USC'];
+
+// Map token names to their correct icon filenames
+const TOKEN_ICON_MAP: Record<string, string> = {
+  'stOSMO': 'stOSMO',
+  'rATOM': 'rATOM',
+  'stEVMOS': 'stEVMOS',
+  'stLUNA': 'stLUNA',
+  // Add more mappings if needed
+};
+
 interface TokenCache {
   tokens: TokenWithIcon[];
   timestamp: number;
@@ -40,22 +52,36 @@ export const useTokens = () => {
       return acc;
     }, {} as Record<string, Token[]>);
 
-    // For BUSD, keep only the one with price closest to 1
-    if (tokenGroups['BUSD']) {
-      const busdTokens = tokenGroups['BUSD'];
-      const closestTo1 = busdTokens.reduce((closest, current) => {
-        const currentDiff = Math.abs(current.price - 1);
-        const closestDiff = Math.abs(closest.price - 1);
-        return currentDiff < closestDiff ? current : closest;
-      });
-      tokenGroups['BUSD'] = [closestTo1];
-    }
+    // For stablecoins, keep only the one with price closest to 1
+    STABLECOINS.forEach(currency => {
+      if (tokenGroups[currency]) {
+        const tokens = tokenGroups[currency];
+        const closestTo1 = tokens.reduce((closest, current) => {
+          const currentDiff = Math.abs(current.price - 1);
+          const closestDiff = Math.abs(closest.price - 1);
+          return currentDiff < closestDiff ? current : closest;
+        });
+        tokenGroups[currency] = [closestTo1];
+      }
+    });
+
+    // For other tokens, keep the most recent one if there are duplicates
+    Object.keys(tokenGroups).forEach(currency => {
+      if (!STABLECOINS.includes(currency) && tokenGroups[currency].length > 1) {
+        const tokens = tokenGroups[currency];
+        const mostRecent = tokens.reduce((latest, current) => {
+          return new Date(current.date) > new Date(latest.date) ? current : latest;
+        });
+        tokenGroups[currency] = [mostRecent];
+      }
+    });
 
     // Flatten groups back to array and add icons
     const uniqueTokens = Object.values(tokenGroups).flat();
     return uniqueTokens.map(token => {
-      // Try to get token icon, fallback to SWTH icon if not found
-      const iconUrl = `${TOKEN_ICON_BASE_URL}/${token.currency}.svg`;
+      // Get the correct icon filename from the mapping
+      const iconName = TOKEN_ICON_MAP[token.currency] || token.currency;
+      const iconUrl = `${TOKEN_ICON_BASE_URL}/${iconName}.svg`;
       return {
         ...token,
         iconUrl: iconUrl || FALLBACK_ICON
