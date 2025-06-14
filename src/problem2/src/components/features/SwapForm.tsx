@@ -1,21 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useTokens } from '../../hooks/useTokens';
 import { useTransactions } from '../../context/TransactionContext';
 import { TokenSelect } from './TokenSelect';
 import { TokenWithIcon } from '../../types/token';
 import { Button } from '../elements/Button';
-import { Input } from '../elements/Input';
 import { Tooltip } from '../elements/Tooltip';
-import { Confetti } from '../elements/Confetti';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// TODO: Move to constants file later
 const TRANSACTION_FEE = 0.003;
 
 interface SwapFormProps {
   onTransactionComplete?: () => void;
 }
 
+// Memoized components
+const TokenSelectMemo = memo(TokenSelect);
+const TooltipMemo = memo(Tooltip);
+
 export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => {
-  const { tokens, loading, error } = useTokens();
+  const { tokens, loading, error, refetch } = useTokens();
   const { addTransaction } = useTransactions();
   const [fromToken, setFromToken] = useState<TokenWithIcon | null>(null);
   const [toToken, setToToken] = useState<TokenWithIcon | null>(null);
@@ -23,7 +27,9 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
   const [outputAmount, setOutputAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
+  // Calculate output amount whenever inputs change
   useEffect(() => {
     if (!fromToken || !toToken || !amount) {
       setOutputAmount('');
@@ -33,13 +39,14 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
     const inputAmount = parseFloat(amount);
     if (isNaN(inputAmount)) return;
 
+    // FIXME: Consider using a more precise calculation method
     const rate = fromToken.price / toToken.price;
     const feeAmount = inputAmount * TRANSACTION_FEE;
     const calculatedOutput = ((inputAmount - feeAmount) * rate).toFixed(6);
     setOutputAmount(calculatedOutput);
   }, [fromToken, toToken, amount]);
 
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     if (!fromToken || !toToken) {
       setFormError('Please select both tokens');
       return false;
@@ -54,14 +61,15 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
     }
     setFormError(null);
     return true;
-  };
+  }, [fromToken, toToken, amount]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm() || !fromToken || !toToken) return;
 
     setIsSubmitting(true);
     try {
+      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       addTransaction({
@@ -72,10 +80,15 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
         status: 'completed'
       });
 
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+
+      // Reset form
       setAmount('');
       setOutputAmount('');
       onTransactionComplete?.();
     } catch (error) {
+      console.error('Swap failed:', error);
       addTransaction({
         fromToken,
         toToken,
@@ -86,13 +99,13 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [fromToken, toToken, amount, outputAmount, validateForm, addTransaction, onTransactionComplete]);
 
-  const handleSwapTokens = () => {
+  const handleSwapTokens = useCallback(() => {
     const temp = fromToken;
     setFromToken(toToken);
     setToToken(temp);
-  };
+  }, [fromToken, toToken]);
 
   if (loading) {
     return (
@@ -106,15 +119,45 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
     return (
       <div className="text-red-500 text-center p-4">
         {error}
+        <button 
+          onClick={refetch}
+          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6"
+    >
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-4 right-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-4 py-2 rounded-lg shadow-lg"
+          >
+            Swap completed successfully!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <TokenSelect
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="space-y-4"
+        >
+          <TokenSelectMemo
             tokens={tokens}
             selectedToken={fromToken}
             onChange={setFromToken}
@@ -123,7 +166,9 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
           />
 
           <div className="flex justify-center">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               type="button"
               onClick={handleSwapTokens}
               disabled={isSubmitting || !fromToken || !toToken}
@@ -150,10 +195,10 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
                   d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
                 />
               </svg>
-            </button>
+            </motion.button>
           </div>
 
-          <TokenSelect
+          <TokenSelectMemo
             tokens={tokens}
             selectedToken={toToken}
             onChange={setToToken}
@@ -165,7 +210,8 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Amount
             </label>
-            <input
+            <motion.input
+              whileFocus={{ scale: 1.02 }}
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -174,24 +220,42 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
-        </div>
+        </motion.div>
 
         {outputAmount && fromToken && toToken && (
-          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+          >
             <p className="text-sm text-gray-600 dark:text-gray-300">You will receive</p>
             <p className="text-2xl font-semibold dark:text-white">{outputAmount}</p>
             <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              <p>Exchange Rate: 1 {fromToken.currency} = {(fromToken.price / toToken.price).toFixed(6)} {toToken.currency}</p>
-              <p>Fee: {(parseFloat(amount) * TRANSACTION_FEE).toFixed(6)} {fromToken.currency}</p>
+              <TooltipMemo text="The current exchange rate between the selected tokens">
+                <p>Exchange Rate: 1 {fromToken.currency} = {(fromToken.price / toToken.price).toFixed(6)} {toToken.currency}</p>
+              </TooltipMemo>
+              <TooltipMemo text="A 0.3% fee is charged on each swap transaction">
+                <p>Fee: {(parseFloat(amount) * TRANSACTION_FEE).toFixed(6)} {fromToken.currency}</p>
+              </TooltipMemo>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {formError && (
-          <div className="text-red-500 text-sm">{formError}</div>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-red-500 text-sm"
+          >
+            {formError}
+          </motion.div>
         )}
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isSubmitting}
           className={`w-full py-3 px-4 rounded-lg text-white font-medium ${
@@ -208,8 +272,8 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
           ) : (
             'Swap'
           )}
-        </button>
+        </motion.button>
       </form>
-    </div>
+    </motion.div>
   );
 }; 
