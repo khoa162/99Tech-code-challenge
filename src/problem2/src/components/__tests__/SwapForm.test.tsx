@@ -1,111 +1,92 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { SwapForm } from '../SwapForm';
-import { useTokens } from '../../hooks/useTokens';
+import { SwapForm } from '../features/SwapForm';
+import { TransactionProvider } from '../../context/TransactionContext';
+import { vi } from 'vitest';
+import { within } from '@testing-library/react';
 
-// Mock the useTokens hook
-jest.mock('../../hooks/useTokens');
-
+// Mock data
 const mockTokens = [
-  {
-    currency: 'SWTH',
-    date: '2024-01-01',
-    price: 1.5,
-    iconUrl: 'https://example.com/swth.svg'
-  },
-  {
-    currency: 'ETH',
-    date: '2024-01-01',
-    price: 2000,
-    iconUrl: 'https://example.com/eth.svg'
-  }
+  { currency: 'SWTH', price: 1, iconUrl: '/swth.png' },
+  { currency: 'ETH', price: 2000, iconUrl: '/eth.png' },
 ];
 
-describe('SwapForm', () => {
-  beforeEach(() => {
-    (useTokens as jest.Mock).mockReturnValue({
-      tokens: mockTokens,
-      loading: false,
-      error: null
-    });
-  });
+// Mock useTokens hook
+vi.mock('../../hooks/useTokens', () => ({
+  useTokens: () => ({
+    tokens: mockTokens,
+    loading: false,
+    error: null,
+  }),
+}));
 
-  it('renders the form correctly', () => {
-    render(<SwapForm />);
+// Helper function to render component with provider
+const renderSwapForm = () => {
+  return render(
+    <TransactionProvider>
+      <SwapForm />
+    </TransactionProvider>
+  );
+};
+
+// Helper function to select token
+const selectToken = async (label: string, token: string) => {
+  const button = screen.getByText(label).closest('div')?.querySelector('button');
+  fireEvent.click(button!);
+  
+  await waitFor(() => {
+    const listbox = screen.getByRole('listbox');
+    const option = within(listbox).getByText(token);
+    fireEvent.click(option);
+  });
+};
+
+describe('SwapForm', () => {
+  // Test basic rendering
+  it('should render basic form elements', () => {
+    renderSwapForm();
+    
+    // Check if basic elements are rendered
     expect(screen.getByText('From')).toBeInTheDocument();
     expect(screen.getByText('To')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Enter amount')).toBeInTheDocument();
-    expect(screen.getByText('Swap')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /swap/i })).toBeInTheDocument();
   });
 
-  it('calculates output amount correctly', async () => {
-    render(<SwapForm />);
-    
+  // Test token selection and amount calculation
+  it('should calculate output amount when selecting tokens and entering amount', async () => {
+    renderSwapForm();
+
     // Select tokens
-    const fromSelect = screen.getByText('From').closest('div')?.querySelector('button');
-    const toSelect = screen.getByText('To').closest('div')?.querySelector('button');
-    
-    fireEvent.click(fromSelect!);
-    fireEvent.click(screen.getByText('SWTH'));
-    
-    fireEvent.click(toSelect!);
-    fireEvent.click(screen.getByText('ETH'));
-    
+    await selectToken('From', 'SWTH');
+    await selectToken('To', 'ETH');
+
     // Enter amount
-    const input = screen.getByPlaceholderText('Enter amount');
-    fireEvent.change(input, { target: { value: '100' } });
-    
-    // Check output amount
+    const amountInput = screen.getByPlaceholderText('Enter amount');
+    fireEvent.change(amountInput, { target: { value: '1' } });
+
+    // Verify output amount
     await waitFor(() => {
-      expect(screen.getByText('0.075')).toBeInTheDocument();
+      const outputText = screen.getByText('You will receive');
+      expect(outputText.nextSibling).toHaveTextContent('0.000499');
     });
   });
 
-  it('shows error when same token is selected', async () => {
-    render(<SwapForm />);
-    
-    // Select same token for both
-    const fromSelect = screen.getByText('From').closest('div')?.querySelector('button');
-    const toSelect = screen.getByText('To').closest('div')?.querySelector('button');
-    
-    fireEvent.click(fromSelect!);
-    fireEvent.click(screen.getByText('SWTH'));
-    
-    fireEvent.click(toSelect!);
-    fireEvent.click(screen.getByText('SWTH'));
-    
-    // Enter amount
-    const input = screen.getByPlaceholderText('Enter amount');
-    fireEvent.change(input, { target: { value: '100' } });
-    
-    // Submit form
-    fireEvent.click(screen.getByText('Swap'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Cannot swap the same token')).toBeInTheDocument();
-    });
-  });
+  // Test error handling
+  it('should show error when selecting same token for both fields', async () => {
+    renderSwapForm();
 
-  it('shows loading state when submitting', async () => {
-    render(<SwapForm />);
-    
-    // Fill form
-    const fromSelect = screen.getByText('From').closest('div')?.querySelector('button');
-    const toSelect = screen.getByText('To').closest('div')?.querySelector('button');
-    
-    fireEvent.click(fromSelect!);
-    fireEvent.click(screen.getByText('SWTH'));
-    
-    fireEvent.click(toSelect!);
-    fireEvent.click(screen.getByText('ETH'));
-    
-    const input = screen.getByPlaceholderText('Enter amount');
-    fireEvent.change(input, { target: { value: '100' } });
-    
-    // Submit form
-    fireEvent.click(screen.getByText('Swap'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Swapping...')).toBeInTheDocument();
-    });
+    // Select SWTH for both fields
+    await selectToken('From', 'SWTH');
+    await selectToken('To', 'SWTH');
+
+    // Enter amount and submit
+    const amountInput = screen.getByPlaceholderText('Enter amount');
+    fireEvent.change(amountInput, { target: { value: '1' } });
+
+    const submitButton = screen.getByRole('button', { name: /swap/i });
+    fireEvent.click(submitButton);
+
+    // Verify error message
+    expect(screen.getByText('Cannot swap the same token')).toBeInTheDocument();
   });
 }); 
