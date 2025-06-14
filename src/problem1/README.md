@@ -68,6 +68,6 @@ console.log(sumToNRecursive(5)); // Output: 15
 ## Notes
 
 - All implementations assume the result will be less than Number.MAX_SAFE_INTEGER
-- The mathematical formula (sum_to_n_b) is the most efficient solution
-- For production use, consider using sum_to_n_b for its efficiency
-- The recursive approach (sum_to_n_c) is mainly for educational purposes 
+- The mathematical formula (sumToNFormula) is the most efficient solution
+- For production use, consider using sumToNFormula for its efficiency
+- The recursive approach (sumToNRecursive) is mainly for educational purposes 
