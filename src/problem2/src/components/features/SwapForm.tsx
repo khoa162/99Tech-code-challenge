@@ -8,7 +8,7 @@ import { Tooltip } from '../elements/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // TODO: Move to constants file later
-const TRANSACTION_FEE = 0.003;
+const TRANSACTION_FEE = 0.003; // 0.3% fee, standard fee used by major DEXs like Uniswap V2, SushiSwap
 
 interface SwapFormProps {
   onTransactionComplete?: () => void;
@@ -25,25 +25,39 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
   const [toToken, setToToken] = useState<TokenWithIcon | null>(null);
   const [amount, setAmount] = useState('');
   const [outputAmount, setOutputAmount] = useState('');
+  const [exchangeRate, setExchangeRate] = useState<number>(0);
+  const [feeAmount, setFeeAmount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(''); // swap error message
 
   // Calculate output amount whenever inputs change
   useEffect(() => {
     if (!fromToken || !toToken || !amount) {
       setOutputAmount('');
+      setExchangeRate(0);
+      setFeeAmount(0);
       return;
     }
 
     const inputAmount = parseFloat(amount);
     if (isNaN(inputAmount)) return;
 
-    // Calculate exchange rate without rounding
+    // Calculate exchange rate using exact prices
     const rate = fromToken.price / toToken.price;
-    const feeAmount = inputAmount * TRANSACTION_FEE;
-    const amountAfterFee = inputAmount - feeAmount;
-    const calculatedOutput = amountAfterFee * rate;
+    setExchangeRate(rate);
+    console.log("rate >>>>:", rate);
+    // Calculate total output first
+    const totalOutput = inputAmount * rate;
+    console.log("totalOutput >>>>:", totalOutput);
+    // Then calculate fee on the output amount
+    const calculatedFee = totalOutput * TRANSACTION_FEE;
+    setFeeAmount(calculatedFee);
+    console.log("feeAmount >>>>:", calculatedFee);
+    const calculatedOutput = totalOutput - calculatedFee;
+    console.log("calculatedOutput >>>>:", calculatedOutput);
     
     // Only format the final display value
     setOutputAmount(calculatedOutput.toFixed(6));
@@ -71,6 +85,10 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
     if (!validateForm() || !fromToken || !toToken) return;
 
     setIsSubmitting(true);
+    setFormError(null);
+    setShowError(false);
+    setShowSuccess(false);
+
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -91,6 +109,7 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
       setOutputAmount('');
       onTransactionComplete?.();
     } catch (error) {
+      // Only show error for real failures
       console.error('Swap failed:', error);
       addTransaction({
         fromToken,
@@ -149,6 +168,17 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
             className="absolute top-4 right-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-4 py-2 rounded-lg shadow-lg"
           >
             Swap completed successfully!
+          </motion.div>
+        )}
+        {showError && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-4 right-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-4 py-2 rounded-lg shadow-lg"
+          >
+            {errorMessage}
           </motion.div>
         )}
       </AnimatePresence>
@@ -236,10 +266,10 @@ export const SwapForm: React.FC<SwapFormProps> = ({ onTransactionComplete }) => 
             <p className="text-2xl font-semibold dark:text-white">{outputAmount}</p>
             <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               <TooltipMemo text="The current exchange rate between the selected tokens">
-                <p>Exchange Rate: 1 {fromToken.currency} = {(fromToken.price / toToken.price).toFixed(2)} {toToken.currency}</p>
+                <p>Exchange Rate: 1 {fromToken.currency} = {exchangeRate.toFixed(2)} {toToken.currency}</p>
               </TooltipMemo>
               <TooltipMemo text="A 0.3% fee is charged on each swap transaction">
-                <p>Fee: {(parseFloat(amount) * TRANSACTION_FEE).toFixed(6)} {fromToken.currency}</p>
+                <p>Fee: {feeAmount.toFixed(6)} {toToken.currency}</p>
               </TooltipMemo>
             </div>
           </motion.div>
